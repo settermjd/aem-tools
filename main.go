@@ -18,12 +18,12 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	aemEditLink := os.Getenv("AEM_EDIT_LINK")
+	aemLinkTemplate := os.Getenv("AEM_LINK_TEMPLATE")
 	linksFile := os.Getenv("LINKS_FILE")
 
 	f, err := os.OpenFile(linksFile, os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		log.Fatalf("open file error: %v", err)
+		log.Fatalf("could not open links file (%s); error: %v", linksFile, err)
 		return
 	}
 	defer f.Close()
@@ -40,18 +40,33 @@ func main() {
 			return
 		}
 
-		urlDetails, err := url.Parse(strings.TrimSuffix(line, "\n"))
+		link, err := createAEMEditLink(aemLinkTemplate, line)
 		if err != nil {
-			log.Fatal(fmt.Errorf("could not parse link: %s. reason: %s", line, err))
+			fmt.Println(err)
+			return
 		}
 
-		path := urlDetails.Path
-		var re = regexp.MustCompile(`(?m)(?:\/blog\/)([\w$-_.+!*'(),;?:@=&]*)$`)
-		if re.Match([]byte(path)) {
-			matches := re.FindStringSubmatch(path)
-			if matches != nil {
-				fmt.Printf(aemEditLink+"\n", matches[1])
-			}
+		fmt.Println(link)
+	}
+}
+
+// createAEMEditLink creates an AEM edit link using the provided link template and URL path
+func createAEMEditLink(linkTemplate string, urlPath string) (string, error) {
+	// This matches a path in a URL/string ending with /blog/*
+	regex := `(?m)(?:\/blog\/)([\w$-_.+!*'(),;?:@=&]*)$`
+
+	urlDetails, err := url.Parse(strings.TrimSuffix(urlPath, "\n"))
+	if err != nil {
+		return "", fmt.Errorf("could not extract the sub-path from the provided path (%s), because: %s", urlPath, err)
+	}
+
+	path := urlDetails.Path
+	var re = regexp.MustCompile(regex)
+	if re.Match([]byte(path)) {
+		if matches := re.FindStringSubmatch(path); matches != nil {
+			return fmt.Sprintf(linkTemplate, matches[1]), nil
 		}
 	}
+
+	return "", fmt.Errorf("could not create AEM edit link with the provided URL path (%s)", urlPath)
 }
