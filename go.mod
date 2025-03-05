@@ -1,4 +1,4 @@
-module github.com/settermjd/generate-aem-edit-links
+module github.com/settermjd/gen-aem-edit-links
 
 go 1.24.0
 
